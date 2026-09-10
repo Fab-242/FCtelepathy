@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fitch-Cheney Training</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-mode="encoder">
+
+<header class="app-header">
+  <h1>🎩 Fitch&#8209;Cheney Trick Training</h1>
+  <nav class="mode-tabs">
+    <button class="tab-btn active" data-mode="encoder">Encoder</button>
+    <button class="tab-btn" data-mode="decoder">Decoder</button>
+  </nav>
+  <button id="info-btn" class="icon-btn" title="How the trick works">?</button>
+</header>
+
+<main>
+
+  <!-- ===================== ENCODER ===================== -->
+  <section id="encoder-view" class="mode-view active">
+
+    <div class="panel">
+      <h2>1. The 5 cards</h2>
+      <div class="button-row">
+        <button id="enc-random5">🎲 Random draw</button>
+        <button id="enc-manual5">🖐️ Choose manually</button>
+        <button id="enc-reset" class="secondary">↺ Start over</button>
+      </div>
+    </div>
+
+    <div class="panel" id="enc-step2" hidden>
+      <h2>2. Encoder's choice</h2>
+      <p class="hint"><strong>Drag and drop</strong> the card to keep into "hidden card", then the other 4 into "to send", in order. (Clicking a card also advances the placement.)</p>
+      <div class="button-row">
+        <button id="enc-auto">🤖 Solve automatically</button>
+        <button id="enc-clear-order" class="secondary">Reset order</button>
+        <button id="enc-verify" disabled>✅ Check my encoding</button>
+      </div>
+
+      <div class="dnd-columns">
+        <div class="dnd-col">
+          <h3 class="dnd-col-title">Drawn cards</h3>
+          <div id="enc-hand" class="dropzone hand-zone" data-zone="hand"></div>
+        </div>
+        <div class="dnd-col dnd-col-kept">
+          <h3 class="dnd-col-title">Hidden card</h3>
+          <div id="enc-kept-zone" class="dropzone kept-zone" data-zone="kept"></div>
+        </div>
+        <div class="dnd-col">
+          <h3 class="dnd-col-title">To send (order)</h3>
+          <div id="enc-order-zone" class="order-slots" data-zone="order"></div>
+        </div>
+      </div>
+
+      <div id="enc-result" class="result-box hidden"></div>
+      <div id="enc-explain" class="explain-box hidden"></div>
+    </div>
+
+    <div class="panel" id="enc-step3" hidden>
+      <h2>3. Message for the decoder</h2>
+      <div id="enc-message" class="card-row"></div>
+      <button id="enc-send-to-decoder" class="secondary">→ Send these 4 cards to the decoder</button>
+    </div>
+
+  </section>
+
+  <!-- ===================== DECODER ===================== -->
+  <section id="decoder-view" class="mode-view">
+
+    <div class="panel">
+      <h2>1. Cards received (in order)</h2>
+      <div class="button-row">
+        <button id="dec-random4">🎲 Random draw</button>
+        <button id="dec-manual4">🖐️ Choose manually (4, in order)</button>
+        <button id="dec-reset" class="secondary">↺ Start over</button>
+      </div>
+      <div id="dec-hand" class="card-row"></div>
+    </div>
+
+    <div class="panel" id="dec-step2" hidden>
+      <h2>2. What is the hidden card?</h2>
+      <div class="button-row">
+        <button id="dec-pick-guess">🖐️ Choose my answer</button>
+      </div>
+      <div id="dec-guess" class="card-row"></div>
+      <div class="button-row">
+        <button id="dec-verify" disabled>✅ Check</button>
+      </div>
+      <div id="dec-result" class="result-box hidden"></div>
+      <div id="dec-explain" class="explain-box hidden"></div>
+    </div>
+
+  </section>
+
+</main>
+
+<!-- ===================== MODALS ===================== -->
+
+<div id="card-picker-modal" class="modal hidden">
+  <div class="modal-content">
+    <h2 id="picker-title">Choose cards</h2>
+    <p id="picker-status" class="picker-status"></p>
+    <div id="picker-grid" class="picker-grid"></div>
+    <div class="modal-actions">
+      <button id="picker-cancel" class="secondary">Cancel</button>
+      <button id="picker-confirm" disabled>Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div id="info-modal" class="modal hidden">
+  <div class="modal-content">
+    <h2>How the trick works</h2>
+    <div class="info-content">
+      <p>Two accomplices are dealt 5 cards from a 52-card deck. The <strong>encoder</strong> keeps one of them (the hidden card) and hands the other 4 to the <strong>decoder</strong>, <strong>in a specific order</strong>, who must guess the hidden card.</p>
+      <ol>
+        <li><strong>Same-suit pair.</strong> With 5 cards and 4 suits, at least two cards always share the same suit (pigeonhole principle). One of them becomes the <em>signal card</em> (the 1st card shown), the other stays hidden.</li>
+        <li><strong>Circular distance (1 to 6).</strong> On the circle A→2→3→…→K→A, there is always a direction in which the distance between the two same-suit cards is between 1 and 6. The starting card is the <em>signal</em>, the other end is the <em>hidden card</em>, and the number of steps is the <strong>delta</strong>.</li>
+        <li><strong>Encoding the delta (1-6) with 3 cards.</strong> The 3 remaining cards are sorted: Low &lt; Middle &lt; High. Ties in rank are broken using the suit order <strong>CHaSeD</strong>: ♣ Clubs &lt; ♥ Hearts &lt; ♠ Spades &lt; ♦ Diamonds. There are 3! = 6 ways to order 3 cards, one per delta value:</li>
+      </ol>
+      <table class="perm-table">
+        <thead><tr><th>Delta</th><th>Order sent</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Low, Middle, High</td></tr>
+          <tr><td>2</td><td>Low, High, Middle</td></tr>
+          <tr><td>3</td><td>Middle, Low, High</td></tr>
+          <tr><td>4</td><td>Middle, High, Low</td></tr>
+          <tr><td>5</td><td>High, Low, Middle</td></tr>
+          <tr><td>6</td><td>High, Middle, Low</td></tr>
+        </tbody>
+      </table>
+      <p><strong>Decoding:</strong> the 1st card received gives the hidden suit and the starting point. The order of the next 3 cards gives the delta. Hidden card = signal + delta (on the circle A→…→K→A).</p>
+    </div>
+    <div class="modal-actions">
+      <button id="info-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

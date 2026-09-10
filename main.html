@@ -1,0 +1,1237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fitch-Cheney Training</title>
+<style>
+:root {
+  --bg: #f4f1ea;
+  --panel-bg: #ffffff;
+  --ink: #22252a;
+  --muted: #6b7280;
+  --accent: #1f6f54;
+  --accent-dark: #144d3a;
+  --gold: #c9972c;
+  --red: #c23636;
+  --black: #1c1e22;
+  --border: #d9d3c4;
+  --danger: #b3261e;
+  --ok: #1f6f54;
+  --radius: 10px;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 1.5rem;
+  background: linear-gradient(135deg, var(--accent-dark), var(--accent));
+  color: #fff;
+  flex-wrap: wrap;
+}
+
+.app-header h1 {
+  font-size: 1.25rem;
+  margin: 0;
+  flex: 1 1 auto;
+}
+
+.mode-tabs {
+  display: flex;
+  gap: 0.4rem;
+  background: rgba(255,255,255,0.15);
+  padding: 0.25rem;
+  border-radius: 999px;
+}
+
+.tab-btn {
+  border: none;
+  background: transparent;
+  color: #fff;
+  padding: 0.45rem 1.1rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  opacity: 0.75;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.tab-btn.active {
+  background: #fff;
+  color: var(--accent-dark);
+  opacity: 1;
+}
+
+.icon-btn {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: transparent;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.icon-btn:hover { background: rgba(255,255,255,0.2); }
+
+main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  transition: max-width 0.15s ease;
+}
+
+/* In encoder mode, the 3-column layout (hand / kept / order) gets
+   extra breathing room on a wide screen. */
+@media (min-width: 1000px) {
+  body[data-mode="encoder"] main { max-width: 1180px; }
+}
+
+@media (min-width: 1300px) {
+  body[data-mode="encoder"] main { max-width: 1380px; }
+}
+
+.mode-view { display: none; }
+.mode-view.active { display: block; }
+
+.panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.3rem 1.4rem;
+  margin-bottom: 1.2rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.panel h2 {
+  margin: 0 0 0.7rem;
+  font-size: 1.05rem;
+  color: var(--accent-dark);
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0 0 0.8rem;
+}
+
+.button-row {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.9rem;
+}
+
+button {
+  font-family: inherit;
+  font-size: 0.92rem;
+  padding: 0.5rem 0.95rem;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+  transition: filter 0.12s, transform 0.05s;
+}
+
+button:hover:not(:disabled) { filter: brightness(1.08); }
+button:active:not(:disabled) { transform: translateY(1px); }
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+button.secondary {
+  background: transparent;
+  color: var(--accent-dark);
+  border: 1px solid var(--border);
+}
+
+/* ---------- Cards ---------- */
+
+.card-row {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  min-height: 96px;
+}
+
+.card {
+  position: relative;
+  width: 64px;
+  height: 92px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.1s, box-shadow 0.1s, border-color 0.1s;
+}
+
+.card.static { cursor: default; }
+
+.card:hover:not(.static):not(.disabled) {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.card .rank {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.card .suit {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.card.black { color: var(--black); }
+.card.red { color: var(--red); }
+
+.card.kept {
+  border-color: var(--gold);
+  border-width: 2px;
+  box-shadow: 0 0 0 3px rgba(201,151,44,0.25);
+}
+
+.card.ordered {
+  border-color: var(--accent);
+  border-width: 2px;
+}
+
+.card.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.card.selected {
+  border-color: var(--accent);
+  border-width: 2px;
+  background: #eaf5f0;
+}
+
+.card .badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent-dark);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card.card-back {
+  background: repeating-linear-gradient(45deg, var(--accent-dark), var(--accent-dark) 6px, var(--accent) 6px, var(--accent) 12px);
+  color: #fff;
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+/* ---------- Drag & drop zones (encoder) ---------- */
+
+.dnd-columns {
+  display: flex;
+  gap: 1.1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.dnd-col {
+  flex: 1 1 200px;
+  min-width: 180px;
+}
+
+.dnd-col-kept {
+  flex: 0 0 auto;
+  min-width: 0;
+  width: 100px;
+}
+
+.dnd-col-title {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin: 0 0 0.4rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+}
+
+.dropzone {
+  min-height: 100px;
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  padding: 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.dropzone.drag-over {
+  border-color: var(--accent);
+  background: #eaf5f0;
+}
+
+.kept-zone {
+  justify-content: center;
+  min-height: 90px;
+  padding: 0.4rem;
+}
+
+.placeholder-text {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-align: center;
+  width: 100%;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.order-slots {
+  display: flex;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+}
+
+.order-slot {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.order-slot .slot-index {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--muted);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.order-slot.filled .slot-index {
+  background: var(--accent-dark);
+}
+
+.order-slot-card {
+  width: 64px;
+  height: 92px;
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.order-slot.filled .order-slot-card {
+  border-style: solid;
+  border-color: var(--border);
+}
+
+.order-slot.drag-over .order-slot-card {
+  border-color: var(--accent);
+  background: #eaf5f0;
+}
+
+.card[draggable="true"] {
+  cursor: grab;
+}
+
+.card.dragging {
+  opacity: 0.35;
+}
+
+/* ---------- Result / explain boxes ---------- */
+
+.result-box {
+  padding: 0.7rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 0.8rem;
+  font-weight: 600;
+}
+
+.result-box.ok {
+  background: #e4f5ee;
+  color: var(--ok);
+  border: 1px solid #b7e0cd;
+}
+
+.result-box.ko {
+  background: #fbe9e7;
+  color: var(--danger);
+  border: 1px solid #f2c1bc;
+}
+
+.explain-box {
+  background: #f8f6f0;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 0.8rem 1rem;
+  font-size: 0.9rem;
+  color: #3a3d42;
+}
+
+.explain-box p { margin: 0.35rem 0; }
+
+.hidden { display: none !important; }
+
+/* ---------- Modal ---------- */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(20,20,20,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 50;
+}
+
+.modal-content {
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 1.3rem 1.5rem;
+  max-width: 620px;
+  width: 100%;
+  max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+}
+
+#card-picker-modal .modal-content {
+  max-width: 780px;
+}
+
+.modal-content h2 {
+  margin-top: 0;
+  color: var(--accent-dark);
+}
+
+.picker-status {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-top: -0.4rem;
+}
+
+.picker-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0.6rem 0 1rem;
+}
+
+.picker-row {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: nowrap;
+  justify-content: space-between;
+}
+
+.picker-row .card {
+  width: 38px;
+  height: 56px;
+  flex: 0 0 auto;
+}
+
+.picker-row .card .rank { font-size: 0.85rem; }
+.picker-row .card .suit { font-size: 1rem; }
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+.info-content p { line-height: 1.5; }
+
+.perm-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.8rem 0;
+  font-size: 0.9rem;
+}
+
+.perm-table th, .perm-table td {
+  border: 1px solid var(--border);
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+}
+
+.perm-table th {
+  background: #f0ede3;
+}
+
+@media (max-width: 520px) {
+  .card { width: 54px; height: 78px; }
+  .card .suit { font-size: 1.2rem; }
+}
+
+@media (max-width: 560px) {
+  #card-picker-modal .modal-content { padding: 0.9rem 0.6rem; }
+  .picker-row { gap: 0.12rem; }
+  .picker-row .card { width: 22px; height: 32px; }
+  .picker-row .card .rank { font-size: 0.55rem; }
+  .picker-row .card .suit { font-size: 0.7rem; }
+  .picker-row .card .badge { width: 14px; height: 14px; font-size: 0.5rem; top: -5px; right: -5px; }
+}
+</style>
+</head>
+<body data-mode="encoder">
+
+<header class="app-header">
+  <h1>🎩 Fitch&#8209;Cheney Trick Training</h1>
+  <nav class="mode-tabs">
+    <button class="tab-btn active" data-mode="encoder">Encoder</button>
+    <button class="tab-btn" data-mode="decoder">Decoder</button>
+  </nav>
+  <button id="info-btn" class="icon-btn" title="How the trick works">?</button>
+</header>
+
+<main>
+
+  <!-- ===================== ENCODER ===================== -->
+  <section id="encoder-view" class="mode-view active">
+
+    <div class="panel">
+      <h2>1. The 5 cards</h2>
+      <div class="button-row">
+        <button id="enc-random5">🎲 Random draw</button>
+        <button id="enc-manual5">🖐️ Choose manually</button>
+        <button id="enc-reset" class="secondary">↺ Start over</button>
+      </div>
+    </div>
+
+    <div class="panel" id="enc-step2" hidden>
+      <h2>2. Encoder's choice</h2>
+      <p class="hint"><strong>Drag and drop</strong> the card to keep into "hidden card", then the other 4 into "to send", in order. (Clicking a card also advances the placement.)</p>
+      <div class="button-row">
+        <button id="enc-auto">🤖 Solve automatically</button>
+        <button id="enc-clear-order" class="secondary">Reset order</button>
+        <button id="enc-verify" disabled>✅ Check my encoding</button>
+      </div>
+
+      <div class="dnd-columns">
+        <div class="dnd-col">
+          <h3 class="dnd-col-title">Drawn cards</h3>
+          <div id="enc-hand" class="dropzone hand-zone" data-zone="hand"></div>
+        </div>
+        <div class="dnd-col dnd-col-kept">
+          <h3 class="dnd-col-title">Hidden card</h3>
+          <div id="enc-kept-zone" class="dropzone kept-zone" data-zone="kept"></div>
+        </div>
+        <div class="dnd-col">
+          <h3 class="dnd-col-title">To send (order)</h3>
+          <div id="enc-order-zone" class="order-slots" data-zone="order"></div>
+        </div>
+      </div>
+
+      <div id="enc-result" class="result-box hidden"></div>
+      <div id="enc-explain" class="explain-box hidden"></div>
+    </div>
+
+    <div class="panel" id="enc-step3" hidden>
+      <h2>3. Message for the decoder</h2>
+      <div id="enc-message" class="card-row"></div>
+      <button id="enc-send-to-decoder" class="secondary">→ Send these 4 cards to the decoder</button>
+    </div>
+
+  </section>
+
+  <!-- ===================== DECODER ===================== -->
+  <section id="decoder-view" class="mode-view">
+
+    <div class="panel">
+      <h2>1. Cards received (in order)</h2>
+      <div class="button-row">
+        <button id="dec-random4">🎲 Random draw</button>
+        <button id="dec-manual4">🖐️ Choose manually (4, in order)</button>
+        <button id="dec-reset" class="secondary">↺ Start over</button>
+      </div>
+      <div id="dec-hand" class="card-row"></div>
+    </div>
+
+    <div class="panel" id="dec-step2" hidden>
+      <h2>2. What is the hidden card?</h2>
+      <div class="button-row">
+        <button id="dec-pick-guess">🖐️ Choose my answer</button>
+      </div>
+      <div id="dec-guess" class="card-row"></div>
+      <div class="button-row">
+        <button id="dec-verify" disabled>✅ Check</button>
+      </div>
+      <div id="dec-result" class="result-box hidden"></div>
+      <div id="dec-explain" class="explain-box hidden"></div>
+    </div>
+
+  </section>
+
+</main>
+
+<!-- ===================== MODALS ===================== -->
+
+<div id="card-picker-modal" class="modal hidden">
+  <div class="modal-content">
+    <h2 id="picker-title">Choose cards</h2>
+    <p id="picker-status" class="picker-status"></p>
+    <div id="picker-grid" class="picker-grid"></div>
+    <div class="modal-actions">
+      <button id="picker-cancel" class="secondary">Cancel</button>
+      <button id="picker-confirm" disabled>Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div id="info-modal" class="modal hidden">
+  <div class="modal-content">
+    <h2>How the trick works</h2>
+    <div class="info-content">
+      <p>Two accomplices are dealt 5 cards from a 52-card deck. The <strong>encoder</strong> keeps one of them (the hidden card) and hands the other 4 to the <strong>decoder</strong>, <strong>in a specific order</strong>, who must guess the hidden card.</p>
+      <ol>
+        <li><strong>Same-suit pair.</strong> With 5 cards and 4 suits, at least two cards always share the same suit (pigeonhole principle). One of them becomes the <em>signal card</em> (the 1st card shown), the other stays hidden.</li>
+        <li><strong>Circular distance (1 to 6).</strong> On the circle A→2→3→…→K→A, there is always a direction in which the distance between the two same-suit cards is between 1 and 6. The starting card is the <em>signal</em>, the other end is the <em>hidden card</em>, and the number of steps is the <strong>delta</strong>.</li>
+        <li><strong>Encoding the delta (1-6) with 3 cards.</strong> The 3 remaining cards are sorted: Low &lt; Middle &lt; High. Ties in rank are broken using the suit order <strong>CHaSeD</strong>: ♣ Clubs &lt; ♥ Hearts &lt; ♠ Spades &lt; ♦ Diamonds. There are 3! = 6 ways to order 3 cards, one per delta value:</li>
+      </ol>
+      <table class="perm-table">
+        <thead><tr><th>Delta</th><th>Order sent</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Low, Middle, High</td></tr>
+          <tr><td>2</td><td>Low, High, Middle</td></tr>
+          <tr><td>3</td><td>Middle, Low, High</td></tr>
+          <tr><td>4</td><td>Middle, High, Low</td></tr>
+          <tr><td>5</td><td>High, Low, Middle</td></tr>
+          <tr><td>6</td><td>High, Middle, Low</td></tr>
+        </tbody>
+      </table>
+      <p><strong>Decoding:</strong> the 1st card received gives the hidden suit and the starting point. The order of the next 3 cards gives the delta. Hidden card = signal + delta (on the circle A→…→K→A).</p>
+    </div>
+    <div class="modal-actions">
+      <button id="info-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* =====================================================================
+   CARD MODEL + FITCH-CHENEY ALGORITHM
+   ===================================================================== */
+
+const SUITS = [
+  { code: 'C', symbol: '♣', color: 'black', name: 'Clubs',    chasedOrder: 0 },
+  { code: 'H', symbol: '♥', color: 'red',   name: 'Hearts',   chasedOrder: 1 },
+  { code: 'S', symbol: '♠', color: 'black', name: 'Spades',   chasedOrder: 2 },
+  { code: 'D', symbol: '♦', color: 'red',   name: 'Diamonds', chasedOrder: 3 },
+];
+const SUIT_MAP = Object.fromEntries(SUITS.map(s => [s.code, s]));
+const RANK_NAMES = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+
+function rankName(rank) { return RANK_NAMES[rank - 1]; }
+function cardId(card) { return `${card.rank}-${card.suit}`; }
+function sameCard(a, b) { return a && b && a.rank === b.rank && a.suit === b.suit; }
+function cardLabel(card) { return `${rankName(card.rank)}${SUIT_MAP[card.suit].symbol}`; }
+
+function fullDeck() {
+  const deck = [];
+  for (const s of SUITS) for (let r = 1; r <= 13; r++) deck.push({ rank: r, suit: s.code });
+  return deck;
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function randomCards(n, exclude = []) {
+  const excluded = new Set(exclude.map(cardId));
+  const pool = fullDeck().filter(c => !excluded.has(cardId(c)));
+  return shuffle(pool).slice(0, n);
+}
+
+// Total order on cards: rank first, suit as CHaSeD tie-break.
+function totalOrderCompare(a, b) {
+  if (a.rank !== b.rank) return a.rank - b.rank;
+  return SUIT_MAP[a.suit].chasedOrder - SUIT_MAP[b.suit].chasedOrder;
+}
+
+function mod13(x) { return ((x % 13) + 13) % 13; }
+
+// Given two cards of the same suit, determines which one is the
+// "signal" and which one is "hidden", and the delta (1-6) between them.
+function resolveSignalHidden(c1, c2) {
+  const d = mod13(c2.rank - c1.rank);
+  if (d >= 1 && d <= 6) return { signal: c1, hidden: c2, delta: d };
+  const d2 = mod13(c1.rank - c2.rank);
+  return { signal: c2, hidden: c1, delta: d2 };
+}
+
+// The 6 permutations of (Low, Middle, High), in lexicographic order
+// -> mapped to deltas 1 through 6.
+const PERM_PATTERNS = [
+  [0, 1, 2], // delta 1: L M H
+  [0, 2, 1], // delta 2: L H M
+  [1, 0, 2], // delta 3: M L H
+  [1, 2, 0], // delta 4: M H L
+  [2, 0, 1], // delta 5: H L M
+  [2, 1, 0], // delta 6: H M L
+];
+
+function encodeDeltaToOrder(delta, sortedLMH) {
+  return PERM_PATTERNS[delta - 1].map(idx => sortedLMH[idx]);
+}
+
+function decodeOrderToDelta(orderedThree) {
+  const sorted = [...orderedThree].sort(totalOrderCompare);
+  const pattern = orderedThree.map(c => sorted.findIndex(s => sameCard(s, c)));
+  const idx = PERM_PATTERNS.findIndex(p => p.every((v, i) => v === pattern[i]));
+  return { delta: idx + 1, sorted };
+}
+
+// Picks, among 5 cards, the same-suit pair to use (deterministic).
+function chooseSameSuitPair(cards) {
+  const bySuit = {};
+  for (const c of cards) (bySuit[c.suit] ||= []).push(c);
+  const candidateSuits = Object.keys(bySuit)
+    .filter(s => bySuit[s].length >= 2)
+    .sort((a, b) => SUIT_MAP[a].chasedOrder - SUIT_MAP[b].chasedOrder);
+  const suit = candidateSuits[0];
+  const group = [...bySuit[suit]].sort((a, b) => a.rank - b.rank);
+  return { pair: [group[0], group[1]], suit };
+}
+
+// Automatically encodes a 5-card hand -> hidden card + 4-card message.
+function encodeHand(fiveCards) {
+  const { pair } = chooseSameSuitPair(fiveCards);
+  const { signal, hidden, delta } = resolveSignalHidden(pair[0], pair[1]);
+  const remaining = fiveCards.filter(c => !sameCard(c, pair[0]) && !sameCard(c, pair[1]));
+  const sortedLMH = [...remaining].sort(totalOrderCompare);
+  const orderedThree = encodeDeltaToOrder(delta, sortedLMH);
+  const message = [signal, ...orderedThree];
+  return { hidden, signal, delta, sortedLMH, orderedThree, message };
+}
+
+// Decodes a 4-card message (in the order received) -> the inferred hidden card.
+// Total function: works even if the 4 cards don't come from a "valid"
+// encoding (useful for checking answers in training mode).
+function decodeMessage(fourCards) {
+  const signal = fourCards[0];
+  const rest = fourCards.slice(1);
+  const { delta, sorted } = decodeOrderToDelta(rest);
+  const hiddenRank = ((signal.rank - 1 + delta) % 13) + 1;
+  const hidden = { rank: hiddenRank, suit: signal.suit };
+  return { hidden, signal, delta, sorted, rest };
+}
+
+/* =====================================================================
+   DOM UTILITIES
+   ===================================================================== */
+
+const $ = sel => document.querySelector(sel);
+
+function createCardEl(card, opts = {}) {
+  const div = document.createElement('div');
+  div.className = `card ${SUIT_MAP[card.suit].color}${opts.extraClass ? ' ' + opts.extraClass : ''}`;
+  div.innerHTML = `<span class="rank">${rankName(card.rank)}</span><span class="suit">${SUIT_MAP[card.suit].symbol}</span>`;
+  if (opts.badge) {
+    const b = document.createElement('span');
+    b.className = 'badge';
+    b.textContent = opts.badge;
+    div.appendChild(b);
+  }
+  if (opts.onClick) {
+    div.addEventListener('click', opts.onClick);
+  } else if (!opts.draggable) {
+    div.classList.add('static');
+  }
+  if (opts.draggable) {
+    div.draggable = true;
+    div.addEventListener('dragstart', e => {
+      draggedCard = card;
+      div.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', cardId(card));
+    });
+    div.addEventListener('dragend', () => {
+      div.classList.remove('dragging');
+      draggedCard = null;
+    });
+  }
+  return div;
+}
+
+function createBackCardEl() {
+  const div = document.createElement('div');
+  div.className = 'card card-back static';
+  div.textContent = '?';
+  return div;
+}
+
+/* =====================================================================
+   STATE — ENCODER (drag & drop between 3 zones: hand / kept / order)
+   ===================================================================== */
+
+// Card currently being dragged (shared by every draggable element).
+let draggedCard = null;
+
+// allHand: the 5 drawn cards, fixed for the current round (used by
+// "Solve automatically" and by reset). handCards/kept/order describe
+// where each card currently sits.
+const encState = { allHand: [], handCards: [], kept: null, order: [] };
+
+function resetEncoder() {
+  encState.allHand = [];
+  encState.handCards = [];
+  encState.kept = null;
+  encState.order = [];
+  $('#enc-step2').hidden = true;
+  $('#enc-step3').hidden = true;
+  clearEncFeedback();
+  renderEncZones();
+}
+
+function clearEncFeedback() {
+  $('#enc-result').classList.add('hidden');
+  $('#enc-explain').classList.add('hidden');
+}
+
+function setEncHand(cards) {
+  encState.allHand = cards;
+  encState.handCards = cards.slice();
+  encState.kept = null;
+  encState.order = [];
+  clearEncFeedback();
+  $('#enc-step2').hidden = cards.length !== 5;
+  $('#enc-step3').hidden = true;
+  renderEncZones();
+}
+
+function removeCardFromEverywhere(card) {
+  encState.handCards = encState.handCards.filter(c => !sameCard(c, card));
+  if (encState.kept && sameCard(encState.kept, card)) encState.kept = null;
+  encState.order = encState.order.filter(c => !sameCard(c, card));
+}
+
+function moveCardToHand(card) {
+  removeCardFromEverywhere(card);
+  encState.handCards.push(card);
+  afterEncChange();
+}
+
+function moveCardToKept(card) {
+  removeCardFromEverywhere(card);
+  if (encState.kept) encState.handCards.push(encState.kept);
+  encState.kept = card;
+  afterEncChange();
+}
+
+function moveCardToOrder(card, targetIndex) {
+  removeCardFromEverywhere(card);
+  const idx = Math.max(0, Math.min(targetIndex, encState.order.length));
+  encState.order.splice(idx, 0, card);
+  if (encState.order.length > 4) {
+    encState.handCards.push(encState.order.pop());
+  }
+  afterEncChange();
+}
+
+function afterEncChange() {
+  clearEncFeedback();
+  $('#enc-step3').hidden = true;
+  renderEncZones();
+}
+
+function renderEncZones() {
+  // "Hand" zone (cards not yet placed)
+  const handZone = $('#enc-hand');
+  handZone.innerHTML = '';
+  encState.handCards.forEach(card => {
+    handZone.appendChild(createCardEl(card, { draggable: true, onClick: () => onHandCardClick(card) }));
+  });
+
+  // "Hidden card" zone
+  const keptZone = $('#enc-kept-zone');
+  keptZone.innerHTML = '';
+  if (encState.kept) {
+    keptZone.appendChild(createCardEl(encState.kept, { draggable: true, extraClass: 'kept', onClick: () => moveCardToHand(encState.kept) }));
+  } else {
+    const ph = document.createElement('div');
+    ph.className = 'placeholder-text';
+    ph.textContent = 'Drop the card to hide here';
+    keptZone.appendChild(ph);
+  }
+
+  // "Order" zone (4 numbered slots)
+  const orderZone = $('#enc-order-zone');
+  orderZone.innerHTML = '';
+  for (let i = 0; i < 4; i++) {
+    const slot = document.createElement('div');
+    slot.className = 'order-slot';
+    slot.dataset.index = String(i);
+    const idx = document.createElement('span');
+    idx.className = 'slot-index';
+    idx.textContent = String(i + 1);
+    slot.appendChild(idx);
+    const cardArea = document.createElement('div');
+    cardArea.className = 'order-slot-card';
+    const card = encState.order[i];
+    if (card) {
+      slot.classList.add('filled');
+      const cardCard = card;
+      cardArea.appendChild(createCardEl(card, { draggable: true, onClick: () => moveCardToHand(cardCard) }));
+    }
+    slot.appendChild(cardArea);
+    registerDropZone(slot, () => (encState.order[i] !== undefined ? i : encState.order.length));
+    orderZone.appendChild(slot);
+  }
+
+  updateEncButtons();
+}
+
+function onHandCardClick(card) {
+  if (!encState.kept) moveCardToKept(card);
+  else if (encState.order.length < 4) moveCardToOrder(card, encState.order.length);
+}
+
+// Makes a DOM element able to receive the card currently being dragged.
+function registerDropZone(el, getTargetIndex) {
+  el.addEventListener('dragover', e => {
+    if (!draggedCard) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    el.classList.add('drag-over');
+  });
+  el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+  el.addEventListener('drop', e => {
+    e.preventDefault();
+    el.classList.remove('drag-over');
+    if (!draggedCard) return;
+    const card = draggedCard;
+    const zone = el.closest('[data-zone]').dataset.zone;
+    if (zone === 'hand') moveCardToHand(card);
+    else if (zone === 'kept') moveCardToKept(card);
+    else if (zone === 'order') moveCardToOrder(card, getTargetIndex ? getTargetIndex() : 0);
+    draggedCard = null;
+  });
+}
+
+function updateEncButtons() {
+  $('#enc-verify').disabled = !(encState.kept && encState.order.length === 4);
+}
+
+function showEncMessage(message) {
+  const container = $('#enc-message');
+  container.innerHTML = '';
+  message.forEach(c => container.appendChild(createCardEl(c, {})));
+  $('#enc-step3').hidden = false;
+}
+
+/* =====================================================================
+   STATE — DECODER
+   ===================================================================== */
+
+const decState = { hand: [], guess: null };
+
+function resetDecoder() {
+  decState.hand = [];
+  decState.guess = null;
+  $('#dec-step2').hidden = true;
+  clearDecFeedback();
+  renderDecHand();
+  renderDecGuess();
+}
+
+function clearDecFeedback() {
+  $('#dec-result').classList.add('hidden');
+  $('#dec-explain').classList.add('hidden');
+}
+
+function setDecHand(cards) {
+  decState.hand = cards;
+  decState.guess = null;
+  clearDecFeedback();
+  $('#dec-step2').hidden = cards.length !== 4;
+  renderDecHand();
+  renderDecGuess();
+}
+
+function renderDecHand() {
+  const container = $('#dec-hand');
+  container.innerHTML = '';
+  decState.hand.forEach((card, i) => {
+    const el = createCardEl(card, { badge: String(i + 1) });
+    container.appendChild(el);
+  });
+}
+
+function renderDecGuess() {
+  const container = $('#dec-guess');
+  container.innerHTML = '';
+  if (decState.guess) container.appendChild(createCardEl(decState.guess, {}));
+  else container.appendChild(createBackCardEl());
+  $('#dec-verify').disabled = !decState.guess;
+}
+
+/* =====================================================================
+   TEXTUAL EXPLANATIONS
+   ===================================================================== */
+
+function explainEncode(res) {
+  const suit = SUIT_MAP[res.signal.suit];
+  return `
+    <p><strong>1. Same-suit pair:</strong> ${cardLabel(res.signal)} and ${cardLabel(res.hidden)} are both ${suit.name} (${suit.symbol}).</p>
+    <p><strong>2. Circular distance:</strong> from ${cardLabel(res.signal)} to ${cardLabel(res.hidden)}, there are <strong>${res.delta}</strong> steps on the circle A→2→…→K→A. ${cardLabel(res.signal)} becomes the <em>signal</em> card, ${cardLabel(res.hidden)} stays hidden.</p>
+    <p><strong>3. Remaining cards sorted</strong> (Low, Middle, High): ${res.sortedLMH.map(cardLabel).join(', ')}.<br>To send delta ${res.delta}, they are presented in this order: <strong>${res.orderedThree.map(cardLabel).join(', ')}</strong>.</p>
+    <p><strong>Final message:</strong> ${res.message.map(cardLabel).join(' → ')}</p>
+  `;
+}
+
+function explainDecode(res) {
+  const suit = SUIT_MAP[res.signal.suit];
+  return `
+    <p><strong>Signal card:</strong> ${cardLabel(res.signal)} (1st card received) → hidden suit = ${suit.symbol} ${suit.name}.</p>
+    <p><strong>Next 3 cards sorted</strong> (Low, Middle, High): ${res.sorted.map(cardLabel).join(', ')}.<br>Order received: ${res.rest.map(cardLabel).join(', ')} → delta = <strong>${res.delta}</strong>.</p>
+    <p><strong>Hidden card</strong> = ${cardLabel(res.signal)} + ${res.delta} = <strong>${cardLabel(res.hidden)}</strong></p>
+  `;
+}
+
+/* =====================================================================
+   CARD PICKER (MODAL)
+   ===================================================================== */
+
+let pickerState = null;
+
+function openCardPicker({ count, title, onConfirm }) {
+  pickerState = { count, selected: [], onConfirm };
+  $('#picker-title').textContent = title;
+  renderPickerGrid();
+  updatePickerStatus();
+  $('#card-picker-modal').classList.remove('hidden');
+}
+
+function closeCardPicker() {
+  $('#card-picker-modal').classList.add('hidden');
+  pickerState = null;
+}
+
+function renderPickerGrid() {
+  const grid = $('#picker-grid');
+  grid.innerHTML = '';
+  for (const s of SUITS) {
+    const row = document.createElement('div');
+    row.className = 'picker-row';
+    for (let r = 1; r <= 13; r++) {
+      const card = { rank: r, suit: s.code };
+      const id = cardId(card);
+      const selIdx = pickerState.selected.findIndex(c => cardId(c) === id);
+      const disabled = selIdx < 0 && pickerState.selected.length >= pickerState.count;
+      const el = createCardEl(card, {
+        extraClass: (selIdx >= 0 ? 'selected' : '') + (disabled ? ' disabled' : ''),
+        badge: selIdx >= 0 ? String(selIdx + 1) : null,
+        onClick: disabled ? null : () => onPickerCardClick(card),
+      });
+      row.appendChild(el);
+    }
+    grid.appendChild(row);
+  }
+}
+
+function onPickerCardClick(card) {
+  const id = cardId(card);
+  const idx = pickerState.selected.findIndex(c => cardId(c) === id);
+  if (idx >= 0) pickerState.selected.splice(idx, 1);
+  else if (pickerState.selected.length < pickerState.count) pickerState.selected.push(card);
+  renderPickerGrid();
+  updatePickerStatus();
+}
+
+function updatePickerStatus() {
+  $('#picker-status').textContent = `${pickerState.selected.length} / ${pickerState.count} selected${pickerState.count > 1 ? ' — selection order matters' : ''}.`;
+  $('#picker-confirm').disabled = pickerState.selected.length !== pickerState.count;
+}
+
+/* =====================================================================
+   INITIALIZATION / EVENTS
+   ===================================================================== */
+
+document.addEventListener('DOMContentLoaded', () => {
+
+  // --- Tabs ---
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const mode = btn.dataset.mode;
+      $('#encoder-view').classList.toggle('active', mode === 'encoder');
+      $('#decoder-view').classList.toggle('active', mode === 'decoder');
+      document.body.dataset.mode = mode;
+    });
+  });
+
+  // --- Info modal ---
+  $('#info-btn').addEventListener('click', () => $('#info-modal').classList.remove('hidden'));
+  $('#info-close').addEventListener('click', () => $('#info-modal').classList.add('hidden'));
+  $('#info-modal').addEventListener('click', e => { if (e.target === $('#info-modal')) $('#info-modal').classList.add('hidden'); });
+
+  // --- Picker modal (generic close) ---
+  $('#picker-cancel').addEventListener('click', closeCardPicker);
+  $('#card-picker-modal').addEventListener('click', e => { if (e.target === $('#card-picker-modal')) closeCardPicker(); });
+  $('#picker-confirm').addEventListener('click', () => {
+    const cards = pickerState.selected.slice();
+    const cb = pickerState.onConfirm;
+    closeCardPicker();
+    cb(cards);
+  });
+
+  /* ---------------- ENCODER ---------------- */
+
+  // The "hand" zone and the "hidden card" zone keep the same DOM
+  // container element from one render to the next: register their drop
+  // listeners only once (order slots, on the other hand, are recreated
+  // on every render and register themselves in renderEncZones()).
+  registerDropZone($('#enc-hand'), () => 0);
+  registerDropZone($('#enc-kept-zone'), () => 0);
+
+  $('#enc-random5').addEventListener('click', () => setEncHand(randomCards(5)));
+
+  $('#enc-manual5').addEventListener('click', () => {
+    openCardPicker({
+      count: 5,
+      title: 'Choose 5 cards',
+      onConfirm: cards => setEncHand(cards),
+    });
+  });
+
+  $('#enc-reset').addEventListener('click', resetEncoder);
+
+  $('#enc-clear-order').addEventListener('click', () => {
+    encState.handCards.push(...encState.order);
+    encState.order = [];
+    clearEncFeedback();
+    $('#enc-step3').hidden = true;
+    renderEncZones();
+  });
+
+  $('#enc-auto').addEventListener('click', () => {
+    if (encState.allHand.length !== 5) return;
+    const res = encodeHand(encState.allHand);
+    encState.kept = res.hidden;
+    encState.order = res.message.slice(); // 4 cards already in the order to send
+    encState.handCards = [];
+    renderEncZones();
+    $('#enc-result').className = 'result-box ok';
+    $('#enc-result').textContent = `Card kept: ${cardLabel(res.hidden)}. Cards to send, in order: ${res.message.map(cardLabel).join(', ')}.`;
+    $('#enc-result').classList.remove('hidden');
+    $('#enc-explain').innerHTML = explainEncode(res);
+    $('#enc-explain').classList.remove('hidden');
+    showEncMessage(res.message);
+  });
+
+  $('#enc-verify').addEventListener('click', () => {
+    if (!(encState.kept && encState.order.length === 4)) return;
+    const decoded = decodeMessage(encState.order);
+    const correct = sameCard(decoded.hidden, encState.kept);
+    $('#enc-result').className = 'result-box ' + (correct ? 'ok' : 'ko');
+    $('#enc-result').textContent = correct
+      ? `✅ Correct! With this order, the decoder correctly guesses ${cardLabel(encState.kept)}.`
+      : `❌ Incorrect. With this order, the decoder would guess ${cardLabel(decoded.hidden)}, not ${cardLabel(encState.kept)}.`;
+    $('#enc-result').classList.remove('hidden');
+    $('#enc-explain').innerHTML = explainDecode(decoded);
+    $('#enc-explain').classList.remove('hidden');
+    if (correct) showEncMessage(encState.order);
+  });
+
+  $('#enc-send-to-decoder').addEventListener('click', () => {
+    setDecHand(encState.order.slice());
+    document.querySelector('.tab-btn[data-mode="decoder"]').click();
+  });
+
+  /* ---------------- DECODER ---------------- */
+
+  $('#dec-random4').addEventListener('click', () => {
+    const five = randomCards(5);
+    const res = encodeHand(five);
+    setDecHand(res.message);
+  });
+
+  $('#dec-manual4').addEventListener('click', () => {
+    openCardPicker({
+      count: 4,
+      title: 'Choose the 4 received cards, in order',
+      onConfirm: cards => setDecHand(cards),
+    });
+  });
+
+  $('#dec-reset').addEventListener('click', resetDecoder);
+
+  $('#dec-pick-guess').addEventListener('click', () => {
+    openCardPicker({
+      count: 1,
+      title: 'Choose the hidden card',
+      onConfirm: cards => {
+        decState.guess = cards[0];
+        clearDecFeedback();
+        renderDecGuess();
+      },
+    });
+  });
+
+  $('#dec-verify').addEventListener('click', () => {
+    if (decState.hand.length !== 4 || !decState.guess) return;
+    const res = decodeMessage(decState.hand);
+    const correct = sameCard(res.hidden, decState.guess);
+    $('#dec-result').className = 'result-box ' + (correct ? 'ok' : 'ko');
+    $('#dec-result').textContent = correct
+      ? `✅ Correct! The hidden card was indeed ${cardLabel(res.hidden)}.`
+      : `❌ Incorrect. You guessed ${cardLabel(decState.guess)}, the hidden card was ${cardLabel(res.hidden)}.`;
+    $('#dec-result').classList.remove('hidden');
+    $('#dec-explain').innerHTML = explainDecode(res);
+    $('#dec-explain').classList.remove('hidden');
+  });
+
+  // Initial state
+  renderEncZones();
+  renderDecHand();
+  renderDecGuess();
+});
+</script>
+</body>
+</html>
