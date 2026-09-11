@@ -39,8 +39,22 @@ function randomCards(n, exclude = []) {
   return shuffle(pool).slice(0, n);
 }
 
-// Total order on cards: rank first, suit as CHaSeD tie-break.
+// Which convention is used to sort the 3 non-signal/non-hidden cards into
+// Low/Middle/High. 'rank': rank first, suit (CHaSeD) breaks ties (default).
+// 'suit': suit first (CHaSeD order), rank breaks ties within a suit.
+let SORT_MODE = 'rank';
+
+function sortRuleDescription() {
+  return SORT_MODE === 'suit'
+    ? 'by suit (♣<♥<♠<♦) first, then rank (A→K) within a suit'
+    : 'by rank (A→K) first, suit (♣<♥<♠<♦) breaking ties';
+}
+
 function totalOrderCompare(a, b) {
+  if (SORT_MODE === 'suit') {
+    if (a.suit !== b.suit) return SUIT_MAP[a.suit].chasedOrder - SUIT_MAP[b.suit].chasedOrder;
+    return a.rank - b.rank;
+  }
   if (a.rank !== b.rank) return a.rank - b.rank;
   return SUIT_MAP[a.suit].chasedOrder - SUIT_MAP[b.suit].chasedOrder;
 }
@@ -371,7 +385,7 @@ function explainEncode(res) {
   return `
     <p><strong>1. Same-suit pair:</strong> ${cardLabel(res.signal)} and ${cardLabel(res.hidden)} are both ${suit.name} (${suit.symbol}).</p>
     <p><strong>2. Circular distance:</strong> from ${cardLabel(res.signal)} to ${cardLabel(res.hidden)}, there are <strong>${res.delta}</strong> steps on the circle A→2→…→K→A. ${cardLabel(res.signal)} becomes the <em>signal</em> card, ${cardLabel(res.hidden)} stays hidden.</p>
-    <p><strong>3. Remaining cards sorted</strong> (Low, Middle, High): ${res.sortedLMH.map(cardLabel).join(', ')}.<br>To send delta ${res.delta}, they are presented in this order: <strong>${res.orderedThree.map(cardLabel).join(', ')}</strong>.</p>
+    <p><strong>3. Remaining cards sorted</strong> (Low, Middle, High — ${sortRuleDescription()}): ${res.sortedLMH.map(cardLabel).join(', ')}.<br>To send delta ${res.delta}, they are presented in this order: <strong>${res.orderedThree.map(cardLabel).join(', ')}</strong>.</p>
     <p><strong>Final message:</strong> ${res.message.map(cardLabel).join(' → ')}</p>
   `;
 }
@@ -380,7 +394,7 @@ function explainDecode(res) {
   const suit = SUIT_MAP[res.signal.suit];
   return `
     <p><strong>Signal card:</strong> ${cardLabel(res.signal)} (1st card received) → hidden suit = ${suit.symbol} ${suit.name}.</p>
-    <p><strong>Next 3 cards sorted</strong> (Low, Middle, High): ${res.sorted.map(cardLabel).join(', ')}.<br>Order received: ${res.rest.map(cardLabel).join(', ')} → delta = <strong>${res.delta}</strong>.</p>
+    <p><strong>Next 3 cards sorted</strong> (Low, Middle, High — ${sortRuleDescription()}): ${res.sorted.map(cardLabel).join(', ')}.<br>Order received: ${res.rest.map(cardLabel).join(', ')} → delta = <strong>${res.delta}</strong>.</p>
     <p><strong>Hidden card</strong> = ${cardLabel(res.signal)} + ${res.delta} = <strong>${cardLabel(res.hidden)}</strong></p>
   `;
 }
@@ -455,6 +469,21 @@ document.addEventListener('DOMContentLoaded', () => {
       $('#encoder-view').classList.toggle('active', mode === 'encoder');
       $('#decoder-view').classList.toggle('active', mode === 'decoder');
       document.body.dataset.mode = mode;
+    });
+  });
+
+  // --- Sort convention switch ---
+  document.querySelectorAll('.sort-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const mode = btn.dataset.sort;
+      if (mode === SORT_MODE) return;
+      SORT_MODE = mode;
+      document.querySelectorAll('.sort-btn').forEach(b => b.classList.toggle('active', b === btn));
+      // Encoding/decoding depend entirely on the sort convention: any card
+      // already placed under the previous convention is no longer valid,
+      // so start both modes over.
+      resetEncoder();
+      resetDecoder();
     });
   });
 

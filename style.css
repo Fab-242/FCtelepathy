@@ -68,6 +68,41 @@ body {
   opacity: 1;
 }
 
+.sort-switch {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: rgba(255,255,255,0.15);
+  padding: 0.25rem 0.4rem;
+  border-radius: 999px;
+}
+
+.sort-switch-label {
+  color: rgba(255,255,255,0.85);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding-left: 0.4rem;
+}
+
+.sort-btn {
+  border: none;
+  background: transparent;
+  color: #fff;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 600;
+  opacity: 0.75;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.sort-btn.active {
+  background: #fff;
+  color: var(--accent-dark);
+  opacity: 1;
+}
+
 .icon-btn {
   width: 2rem;
   height: 2rem;

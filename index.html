@@ -14,6 +14,11 @@
     <button class="tab-btn active" data-mode="encoder">Encoder</button>
     <button class="tab-btn" data-mode="decoder">Decoder</button>
   </nav>
+  <div class="sort-switch" role="group" aria-label="Card sorting convention">
+    <span class="sort-switch-label">Sort 3 cards:</span>
+    <button class="sort-btn active" data-sort="rank" title="Sort by rank (A→K); suit (♣♥♠♦) only breaks ties">Rank first</button>
+    <button class="sort-btn" data-sort="suit" title="Sort by suit (♣♥♠♦) first: all clubs A→K, then hearts, spades, diamonds">Suit first</button>
+  </div>
   <button id="info-btn" class="icon-btn" title="How the trick works">?</button>
 </header>
 
@@ -119,8 +124,13 @@
       <ol>
         <li><strong>Same-suit pair.</strong> With 5 cards and 4 suits, at least two cards always share the same suit (pigeonhole principle). One of them becomes the <em>signal card</em> (the 1st card shown), the other stays hidden.</li>
         <li><strong>Circular distance (1 to 6).</strong> On the circle A→2→3→…→K→A, there is always a direction in which the distance between the two same-suit cards is between 1 and 6. The starting card is the <em>signal</em>, the other end is the <em>hidden card</em>, and the number of steps is the <strong>delta</strong>.</li>
-        <li><strong>Encoding the delta (1-6) with 3 cards.</strong> The 3 remaining cards are sorted: Low &lt; Middle &lt; High. Ties in rank are broken using the suit order <strong>CHaSeD</strong>: ♣ Clubs &lt; ♥ Hearts &lt; ♠ Spades &lt; ♦ Diamonds. There are 3! = 6 ways to order 3 cards, one per delta value:</li>
+        <li><strong>Encoding the delta (1-6) with 3 cards.</strong> The 3 remaining cards are sorted: Low &lt; Middle &lt; High. There are 3! = 6 ways to order 3 cards, one per delta value:</li>
       </ol>
+      <p>Two conventions can be used to sort those 3 cards — pick one with the <strong>Sort 3 cards</strong> switch at the top (both encoder and decoder must use the same one):</p>
+      <ul>
+        <li><strong>Rank first</strong> (default): sorted by rank (A→K); when two cards share a rank, the suit order <strong>CHaSeD</strong> (♣ Clubs &lt; ♥ Hearts &lt; ♠ Spades &lt; ♦ Diamonds) breaks the tie.</li>
+        <li><strong>Suit first</strong>: sorted by suit first — all clubs (A→K), then all hearts, then spades, then diamonds.</li>
+      </ul>
       <table class="perm-table">
         <thead><tr><th>Delta</th><th>Order sent</th></tr></thead>
         <tbody>
